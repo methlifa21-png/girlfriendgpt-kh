@@ -1,1 +1,104 @@
-
+<!doctype html>
+<html lang="km">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f7d8e8">
+<title>GirlfriendGPT KH 💗</title>
+<style>
+:root{--pink:#ef9ac5;--deep:#a84c83;--bg:#fff7fb;--ink:#382536;--soft:#f9e8f2}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(145deg,#fff7fb,#f1eaff);font-family:system-ui,-apple-system,"Noto Sans Khmer",sans-serif;color:var(--ink);min-height:100vh}
+.app{max-width:900px;margin:0 auto;min-height:100vh;padding:14px;display:flex;flex-direction:column;gap:12px}
+header,.panel,.chat,.composer{background:#ffffffd9;border:1px solid #f0d5e5;border-radius:22px;box-shadow:0 8px 30px #6b2f5010}
+header{padding:14px 16px;display:flex;align-items:center;gap:12px}
+.avatar{width:58px;height:58px;border-radius:50%;display:grid;place-items:center;font-size:32px;background:linear-gradient(135deg,#ffd4e8,#e3d7ff);flex-shrink:0;border:2px solid white;box-shadow:0 2px 12px #b14d8420}
+.headtext{flex:1;min-width:0}.headtext h1{font-size:19px;margin:0 0 3px}.status{font-size:12px;color:#8a6880}
+button,input,select{font:inherit}button{border:0;cursor:pointer;border-radius:14px;padding:10px 13px;background:var(--soft);color:var(--deep);font-weight:650}button.primary{background:linear-gradient(135deg,#e98ab9,#b39af4);color:white}button:active{transform:scale(.98)}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap}.panel{padding:14px;display:none;gap:10px}.panel.open{display:grid}.field{display:grid;gap:5px;font-size:13px;color:#76546b}.field input,.field select{width:100%;border:1px solid #ead2e0;border-radius:12px;padding:10px;background:white;color:var(--ink)}
+.avatars{display:flex;gap:8px;flex-wrap:wrap}.avatar-choice{font-size:25px;padding:8px;border:2px solid transparent}.avatar-choice.selected{border-color:var(--pink);background:#fff0f7}
+.chat{flex:1;min-height:300px;padding:14px;display:flex;flex-direction:column;gap:12px;overflow-y:auto}
+.msg{max-width:86%;padding:11px 13px;border-radius:17px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere;font-size:15px}.msg.ai{align-self:flex-start;background:#f8eaf3;border-bottom-left-radius:5px}.msg.user{align-self:flex-end;background:linear-gradient(135deg,#e9c3df,#d9d0ff);border-bottom-right-radius:5px}.msg small{display:block;font-size:10px;color:#876a80;margin-top:4px}
+.composer{padding:10px;display:flex;gap:8px;align-items:flex-end}.composer textarea{flex:1;resize:none;min-height:44px;max-height:120px;border:1px solid #ead2e0;border-radius:14px;padding:11px;background:white;font:inherit;color:var(--ink);outline-color:var(--pink)}.hint{text-align:center;font-size:11px;color:#8d7185;padding:0 8px 8px}
+@media(min-width:700px){.app{padding:24px}.chat{min-height:440px}.msg{max-width:72%}}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+  <div class="avatar" id="headAvatar">🎀</div>
+  <div class="headtext"><h1 id="headName">Mina 💗</h1><div class="status">● AI Chat · ភាសាខ្មែរ</div></div>
+  <button id="settingsBtn" aria-label="Settings">⚙️</button>
+</header>
+<div class="toolbar"><button id="newChatBtn">＋ សន្ទនាថ្មី</button><button id="exportBtn">⬇️ ទាញយក Chat</button><button id="clearBtn">🗑️ លុបសារ</button></div>
+<section class="panel" id="settings">
+  <label class="field">ឈ្មោះ AI<input id="nameInput" maxlength="30" value="Mina"></label>
+  <div class="field">ជ្រើសរើស Avatar<div class="avatars" id="avatarChoices"></div></div>
+  <label class="field">ពណ៌ App<select id="themeInput"><option value="pink">ផ្កាឈូក និងស្វាយ</option><option value="blue">ខៀវ និងស្វាយ</option><option value="mint">បៃតងស្រាល</option></select></label>
+  <button class="primary" id="saveSettings">រក្សាទុកការកំណត់</button>
+  <div class="field">AI API URL (ជាជម្រើស)<input id="apiInput" placeholder="https://your-server.example/api/chat"><small>កុំដាក់ API key នៅក្នុង HTML ឬ browser។ ត្រូវប្រើ server របស់អ្នកដើម្បីការពារ key។</small></div>
+</section>
+<main class="chat" id="chat" aria-live="polite"></main>
+<form class="composer" id="composer"><textarea id="messageInput" placeholder="សរសេរសារជាភាសាខ្មែរ..." rows="1" maxlength="2000"></textarea><button class="primary" type="submit">ផ្ញើ ➤</button></form>
+<div class="hint">សាររក្សាទុកលើ browser នេះប៉ុណ្ណោះ។ កុំបញ្ចូលព័ត៌មានសម្ងាត់។</div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const AVATARS=["🎀","🌸","🐰","🦊","🐱","💖","🧸","🌙"];
+const DEFAULT={name:"Mina",avatar:"🎀",theme:"pink",apiUrl:""};
+let settings={...DEFAULT,...safeParse(localStorage.getItem("ggpt-settings"),{})};
+let messages=safeParse(localStorage.getItem("ggpt-messages"),[]);
+function safeParse(s,fallback){try{return s?JSON.parse(s):fallback}catch{return fallback}}
+function save(){localStorage.setItem("ggpt-settings",JSON.stringify(settings));localStorage.setItem("ggpt-messages",JSON.stringify(messages))}
+function applySettings(){
+ $("headName").textContent=settings.name+" 💗";$("headAvatar").textContent=settings.avatar;
+ $("nameInput").value=settings.name;$("themeInput").value=settings.theme;$("apiInput").value=settings.apiUrl||"";
+ document.documentElement.style.setProperty("--pink",settings.theme==="blue"?"#8eb7f5":settings.theme==="mint"?"#83d8c2":"#ef9ac5");
+ document.documentElement.style.setProperty("--deep",settings.theme==="blue"?"#4b6eb0":settings.theme==="mint"?"#317d6c":"#a84c83");
+ document.documentElement.style.setProperty("--soft",settings.theme==="blue"?"#e7efff":settings.theme==="mint"?"#e5faf3":"#f9e8f2");
+ $("avatarChoices").innerHTML="";
+ AVATARS.forEach(a=>{const b=document.createElement("button");b.type="button";b.className="avatar-choice"+(a===settings.avatar?" selected":"");b.textContent=a;b.onclick=()=>{settings.avatar=a;applySettings()};$("avatarChoices").appendChild(b)});
+}
+function addMessage(role,text,time=new Date().toISOString(),render=true){
+ messages.push({role,text,time});save();if(render)renderMessage(messages[messages.length-1]);
+}
+function renderMessage(m){
+ const d=document.createElement("div");d.className="msg "+(m.role==="user"?"user":"ai");
+ d.textContent=m.text;const s=document.createElement("small");s.textContent=new Date(m.time).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});d.appendChild(s);$("chat").appendChild(d);$("chat").scrollTop=$("chat").scrollHeight;
+}
+function renderAll(){ $("chat").innerHTML="";if(!messages.length){renderMessage({role:"ai",text:`សួស្តី! 💗 ខ្ញុំ ${settings.name}។ អូនចង់ជជែកអំពីអ្វីថ្ងៃនេះ?`,time:new Date().toISOString()});return}messages.forEach(renderMessage)}
+function demoReply(text){
+ const t=text.toLowerCase();
+ if(/សួស្តី|ជំរាបសួរ|hello|hi/.test(t))return `សួស្តីអូន! ${settings.avatar} ថ្ងៃនេះអូនសុខសប្បាយទេ?`;
+ if(/នឹក|miss/.test(t))return "អរគុណដែលប្រាប់ខ្ញុំ 💗 ចង់ប្រាប់ខ្ញុំបន្ថែមទេថា អូនកំពុងមានអារម្មណ៍បែបណា?";
+ if(/sad|ពិបាកចិត្ត|សោកសៅ|យំ/.test(t))return "ខ្ញុំស្តាប់អូនបានណា 💗 អូនមិនចាំបាច់ប្រញាប់និយាយទេ។ តើមានអ្វីកើតឡើង?";
+ if(/ស្រឡាញ់|love/.test(t))return "ពាក្យនេះផ្អែមល្ហែមណាស់ 💗 ខ្ញុំជា AI ដែលអាចជជែក និងជួយអូនគិតបាន។ អូនចង់ជជែកអំពីអ្វីទៀត?";
+ if(text.trim().endsWith("?")||text.includes("ទេ"))return "សំណួរល្អណាស់ 😊 ខ្ញុំកំពុងដំណើរការក្នុង Demo ដូច្នេះចម្លើយមានកំណត់។ បើចង់បានចម្លើយ AI ពិត ត្រូវភ្ជាប់ server API ដោយសុវត្ថិភាព។";
+ return "ខ្ញុំបានអានសាររបស់អូនហើយ 💗 ប្រាប់ខ្ញុំបន្ថែមបន្តិចបានទេ? (ឥឡូវនេះជា Demo ដូច្នេះខ្ញុំមិនទាន់មាន AI ពិតទេ។)";
+}
+async function getReply(text){
+ if(settings.apiUrl){
+  try{
+   const r=await fetch(settings.apiUrl,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:text,history:messages.slice(-12).map(m=>({role:m.role,content:m.text})),assistantName:settings.name,language:"km"})});
+   if(!r.ok)throw new Error("API request failed");
+   const data=await r.json();if(data.reply)return data.reply;
+   throw new Error("Response must include reply");
+  }catch(e){return "មិនអាចភ្ជាប់ AI Server បានទេ។ សូមពិនិត្យ API URL ឬលុប URL ដើម្បីប្រើ Demo។";}
+ }
+ return demoReply(text);
+}
+$("composer").addEventListener("submit",async e=>{
+ e.preventDefault();const input=$("messageInput"),text=input.value.trim();if(!text)return;
+ addMessage("user",text);input.value="";input.style.height="auto";
+ const btn=$("composer").querySelector("button");btn.disabled=true;btn.textContent="…";
+ const reply=await getReply(text);addMessage("ai",reply);btn.disabled=false;btn.textContent="ផ្ញើ ➤";
+});
+$("messageInput").addEventListener("input",e=>{e.target.style.height="auto";e.target.style.height=Math.min(e.target.scrollHeight,120)+"px"});
+$("settingsBtn").onclick=()=>$("settings").classList.toggle("open");
+$("saveSettings").onclick=()=>{settings.name=$("nameInput").value.trim()||"Mina";settings.theme=$("themeInput").value;settings.apiUrl=$("apiInput").value.trim();save();applySettings();renderAll();$("settings").classList.remove("open")};
+$("newChatBtn").onclick=()=>{if(confirm("ចាប់ផ្ដើមសន្ទនាថ្មី? សារចាស់នឹងត្រូវលុបពីបញ្ជីនេះ។")){messages=[];save();renderAll()}};
+$("clearBtn").onclick=()=>{if(confirm("លុបសារទាំងអស់មែនទេ?")){messages=[];save();renderAll()}};
+$("exportBtn").onclick=()=>{const blob=new Blob([JSON.stringify({settings,messages},null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="girlfriendgpt-chat.json";a.click();URL.revokeObjectURL(a.href)};
+applySettings();renderAll();
+</script>
+</body>
+</html>
